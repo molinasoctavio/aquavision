@@ -28,10 +28,18 @@ app = FastAPI(
     openapi_url="/api/openapi.json",
 )
 
-# Middleware
+# CORS — permite Vercel, Railway y localhost
+origins = settings.ALLOWED_ORIGINS + [
+    "https://*.vercel.app",
+    "https://*.up.railway.app",
+    "http://localhost:3000",
+    "http://localhost:80",
+    "http://localhost",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=["*"],   # In production, replace with specific origins list
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -54,6 +62,16 @@ async def health_check():
         "status": "healthy",
         "service": settings.APP_NAME,
         "version": settings.APP_VERSION,
+    }
+
+
+@app.get("/")
+async def root():
+    return {
+        "name": settings.APP_NAME,
+        "version": settings.APP_VERSION,
+        "docs": "/api/docs",
+        "health": "/api/health",
     }
 
 

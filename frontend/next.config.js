@@ -2,15 +2,15 @@
 const nextConfig = {
   output: 'standalone',
   images: {
-    domains: ['localhost', 'minio', 'cdn.aquavision.io'],
+    remotePatterns: [
+      { protocol: 'http',  hostname: 'localhost'                       },
+      { protocol: 'https', hostname: '*.up.railway.app'                },
+      { protocol: 'https', hostname: '*.vercel.app'                    },
+      { protocol: 'https', hostname: 'cdn.aquavision.io'               },
+    ],
   },
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: process.env.NEXT_PUBLIC_API_URL + '/api/:path*',
-      },
-    ];
+  env: {
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
   },
 };
 

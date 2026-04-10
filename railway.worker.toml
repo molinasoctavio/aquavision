@@ -1,0 +1,7 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "infrastructure/docker/Dockerfile.worker"
+
+[deploy]
+startCommand = "python -m worker.queue_consumer"
+restartPolicyType = "always"

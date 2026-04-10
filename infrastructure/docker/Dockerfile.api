@@ -1,32 +1,35 @@
 FROM python:3.11-slim
 
-# System deps + FFmpeg + vidstab
+# System deps + FFmpeg
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
-    libvidstab-dev \
     libgl1-mesa-glx \
     libglib2.0-0 \
     git \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# yt-dlp
+# yt-dlp for URL ingestion
 RUN pip install --no-cache-dir yt-dlp
 
 WORKDIR /app
 
-# Python deps
+# Python dependencies
 COPY api/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source
+# Copy source code
 COPY api/ ./api/
 COPY agents/ ./agents/
 COPY worker/ ./worker/
-COPY ml/ ./ml/
+COPY ml/ ./ml/ 2>/dev/null || true
+
+# Alembic config needs to run from /app
+COPY api/alembic.ini ./alembic.ini
 
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8000
 
-CMD ["uvicorn", "api.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+CMD ["sh", "-c", "cd /app && alembic upgrade head && uvicorn api.app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
