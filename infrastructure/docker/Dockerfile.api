@@ -22,7 +22,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY api/ ./api/
 COPY agents/ ./agents/
 COPY worker/ ./worker/
-COPY ml/ ./ml/ 2>/dev/null || true
+RUN mkdir -p ./ml
 
 # Alembic config needs to run from /app
 COPY api/alembic.ini ./alembic.ini
