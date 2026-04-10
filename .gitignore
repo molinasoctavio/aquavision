@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+*.log
+
+# Node
+node_modules/
+.next/
+out/
+build/
+dist/
+.vercel/
+
+# ML models (large files — store separately)
+ml/models/*.pt
+ml/models/*.onnx
+ml/datasets/
+
+# Docker volumes / local data
+postgres_data/
+redis_data/
+minio_data/
+mediamtx_recordings/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+*.pem
+*.key
+secrets/

@@ -1,0 +1,213 @@
+version: "3.9"
+
+services:
+  # ─── Database ──────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aquavision
+      POSTGRES_PASSWORD: aquavision
+      POSTGRES_DB: aquavision
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aquavision"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+
+  # ─── Redis ─────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    ports:
+      - "6379:6379"
+
+  # ─── MinIO (Object Storage) ────────────────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"   # MinIO Console
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # MinIO bucket initializer
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin;
+      mc mb --ignore-existing local/aquavision-raw;
+      mc mb --ignore-existing local/aquavision-processed;
+      mc mb --ignore-existing local/aquavision-clips;
+      mc mb --ignore-existing local/aquavision-thumbnails;
+      mc policy set public local/aquavision-thumbnails;
+      echo 'Buckets ready';
+      "
+
+  # ─── MediaMTX (RTMP/RTSP/WebRTC) ──────────────────────────────────────────
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    restart: unless-stopped
+    volumes:
+      - ./infrastructure/mediamtx/mediamtx.yml:/mediamtx.yml:ro
+      - mediamtx_recordings:/recordings
+    ports:
+      - "1935:1935"   # RTMP
+      - "8554:8554"   # RTSP
+      - "8889:8889"   # WebRTC
+      - "9997:9997"   # API
+
+  # ─── Backend API ───────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://aquavision:aquavision@db:5432/aquavision
+      DATABASE_SYNC_URL: postgresql://aquavision:aquavision@db:5432/aquavision
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      S3_ENDPOINT: minio:9000
+      RTMP_SERVER_URL: rtmp://mediamtx:1935
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./ml:/app/ml
+    command: >
+      sh -c "
+        alembic upgrade head &&
+        uvicorn api.app.main:app --host 0.0.0.0 --port 8000 --workers 2
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ─── Video Worker (Agent Pipeline) ────────────────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.worker
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://aquavision:aquavision@db:5432/aquavision
+      DATABASE_SYNC_URL: postgresql://aquavision:aquavision@db:5432/aquavision
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT: minio:9000
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./ml:/app/ml
+    deploy:
+      replicas: 2
+
+  # ─── Celery Worker ─────────────────────────────────────────────────────────
+  celery-worker:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.worker
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://aquavision:aquavision@db:5432/aquavision
+      DATABASE_SYNC_URL: postgresql://aquavision:aquavision@db:5432/aquavision
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      S3_ENDPOINT: minio:9000
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./ml:/app/ml
+    command: celery -A worker.celery_app worker --loglevel=info --concurrency=2 -Q video,ai,export,analytics
+
+  # ─── Celery Flower (Monitor) ───────────────────────────────────────────────
+  flower:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.worker
+    restart: unless-stopped
+    command: celery -A worker.celery_app flower --port=5555
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/1
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+
+  # ─── Frontend ──────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+
+  # ─── Nginx (Reverse Proxy) ─────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+      - frontend
+      - minio
+    ports:
+      - "80:80"
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  mediamtx_recordings:

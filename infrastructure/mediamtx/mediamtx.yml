@@ -1,0 +1,33 @@
+# MediaMTX configuration for RTMP/RTSP/WebRTC ingestion
+logLevel: info
+logDestinations: [stdout]
+
+api: yes
+apiAddress: :9997
+
+rtmp: yes
+rtmpAddress: :1935
+
+rtsp: yes
+rtspAddress: :8554
+
+webrtc: yes
+webrtcAddress: :8889
+
+# Allow publishing from any source
+authInternalUsers:
+  - user: any
+    pass: any
+    ips: []
+    permissions:
+      - action: publish
+        path: "~^live/.*"
+      - action: read
+        path: "~^live/.*"
+
+# Record incoming streams
+record: yes
+recordPath: /recordings/%path/%Y-%m-%dT%H-%M-%S-%f
+recordFormat: fmp4
+recordSegmentDuration: 1h
+recordDeleteAfter: 168h  # 7 days

@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --pool-blue: #03a9f4;
+    --pool-dark: #03045e;
+    --aqua-accent: #90e0ef;
+    --goal-orange: #ff6b35;
+  }
+}
+
+/* Video.js custom theme */
+.vjs-aquavision .vjs-control-bar {
+  background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+  height: 4rem;
+}
+.vjs-aquavision .vjs-play-progress { background: #03a9f4; }
+.vjs-aquavision .vjs-big-play-button {
+  background: rgba(3, 169, 244, 0.8);
+  border: none;
+  border-radius: 50%;
+  width: 80px; height: 80px;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2rem;
+}
+
+/* Pool visualization */
+.pool-map {
+  background: linear-gradient(180deg, #0288d1 0%, #01579b 100%);
+  border: 2px solid #29b6f6;
+  border-radius: 4px;
+  position: relative;
+}
+.pool-map::before { /* center line */
+  content: '';
+  position: absolute;
+  left: 50%; top: 0; bottom: 0;
+  width: 2px; background: rgba(255,255,255,0.4);
+}
+.pool-map::after { /* 5m lines */
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 100%;
+  background:
+    linear-gradient(90deg, transparent 16.67%, rgba(255,200,0,0.3) 16.67%, rgba(255,200,0,0.3) 17%, transparent 17%),
+    linear-gradient(90deg, transparent 83%, rgba(255,200,0,0.3) 83%, rgba(255,200,0,0.3) 83.33%, transparent 83.33%);
+}
+
+/* Clip timeline event markers */
+.event-marker {
+  position: absolute;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  transform: translateX(-50%) translateY(-50%);
+  top: 50%;
+  cursor: pointer;
+  transition: transform 0.1s;
+  z-index: 10;
+}
+.event-marker:hover { transform: translateX(-50%) translateY(-50%) scale(1.5); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #111827; }
+::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+
+/* Upload zone */
+.upload-zone {
+  border: 2px dashed #374151;
+  transition: all 0.3s;
+}
+.upload-zone.drag-active {
+  border-color: #03a9f4;
+  background: rgba(3, 169, 244, 0.05);
+}
+
+/* Heatmap gradient */
+.heatmap-gradient {
+  background: radial-gradient(circle, rgba(255,100,0,0.8) 0%, rgba(255,200,0,0.5) 40%, rgba(0,150,255,0.2) 70%, transparent 100%);
+}
+
+/* Live badge */
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+.live-badge { animation: livePulse 1.5s ease-in-out infinite; }

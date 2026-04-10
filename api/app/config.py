@@ -1,0 +1,78 @@
+from pydantic_settings import BaseSettings
+from functools import lru_cache
+from typing import Optional
+
+
+class Settings(BaseSettings):
+    # App
+    APP_NAME: str = "AquaVision Analytics"
+    APP_VERSION: str = "1.0.0"
+    DEBUG: bool = False
+    SECRET_KEY: str = "change-me-in-production-use-openssl-rand-hex-32"
+    ALLOWED_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:8000"]
+
+    # Auth
+    JWT_SECRET_KEY: str = "jwt-secret-change-me"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+
+    # Database
+    DATABASE_URL: str = "postgresql+asyncpg://aquavision:aquavision@db:5432/aquavision"
+    DATABASE_SYNC_URL: str = "postgresql://aquavision:aquavision@db:5432/aquavision"
+
+    # Redis
+    REDIS_URL: str = "redis://redis:6379/0"
+    CELERY_BROKER_URL: str = "redis://redis:6379/1"
+    CELERY_RESULT_BACKEND: str = "redis://redis:6379/2"
+
+    # MinIO / S3
+    S3_ENDPOINT: str = "minio:9000"
+    S3_ACCESS_KEY: str = "minioadmin"
+    S3_SECRET_KEY: str = "minioadmin"
+    S3_BUCKET_RAW: str = "aquavision-raw"
+    S3_BUCKET_PROCESSED: str = "aquavision-processed"
+    S3_BUCKET_CLIPS: str = "aquavision-clips"
+    S3_BUCKET_THUMBNAILS: str = "aquavision-thumbnails"
+    S3_USE_SSL: bool = False
+
+    # Video Processing
+    FFMPEG_PATH: str = "/usr/bin/ffmpeg"
+    FFPROBE_PATH: str = "/usr/bin/ffprobe"
+    MAX_UPLOAD_SIZE_GB: float = 10.0
+    SUPPORTED_VIDEO_FORMATS: list[str] = [
+        "mp4", "mov", "avi", "mkv", "webm", "m4v", "flv", "wmv", "ts"
+    ]
+    VIDEO_PROCESSING_WORKERS: int = 2
+    DEFAULT_OUTPUT_FORMAT: str = "mp4"
+    DEFAULT_OUTPUT_CODEC: str = "h264"
+    HLS_SEGMENT_DURATION: int = 6
+
+    # AI/ML
+    YOLO_MODEL_PATH: str = "ml/models/waterpolo_yolo.pt"
+    YOLO_CONFIDENCE_THRESHOLD: float = 0.5
+    TRACKING_MAX_AGE: int = 30
+    TRACKING_MIN_HITS: int = 3
+    DETECTION_FRAME_SKIP: int = 3
+
+    # Anthropic Claude
+    ANTHROPIC_API_KEY: str = ""
+    CLAUDE_MODEL: str = "claude-sonnet-4-20250514"
+
+    # Live Streaming
+    RTMP_SERVER_URL: str = "rtmp://mediamtx:1935"
+    WEBRTC_ENABLED: bool = True
+
+    # CDN
+    CDN_BASE_URL: Optional[str] = None
+
+    # Subscriptions
+    STRIPE_SECRET_KEY: str = ""
+    STRIPE_WEBHOOK_SECRET: str = ""
+
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+
+
+@lru_cache()
+def get_settings() -> Settings:
+    return Settings()
