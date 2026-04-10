@@ -12,6 +12,13 @@ config = context.config
 if config.config_file_name:
     fileConfig(config.config_file_name)
 
+# Override sqlalchemy.url from DATABASE_URL environment variable
+db_url = os.environ.get("DATABASE_URL", "")
+if db_url:
+    # Railway injects postgres://, alembic sync needs postgresql://
+    db_url = db_url.replace("postgresql+asyncpg://", "postgresql://").replace("postgres://", "postgresql://")
+    config.set_main_option("sqlalchemy.url", db_url)
+
 target_metadata = Base.metadata
 
 
